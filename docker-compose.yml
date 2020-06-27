@@ -1,0 +1,65 @@
+version: '3.5'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    env_file:
+      - ./nginx/nginx.env
+    ports:
+      - 0.0.0.0:80:80 # Standard HTTP
+      - 0.0.0.0:443:443 # Standard HTTPS
+    volumes:
+      - ./nginx/conf:/etc/nginx:ro # Refer to seafile manual for configuring nginx proxy
+      - /tmp/seahub:/var/www/seahub:ro # Shared volume with seafile for static web content
+      - /var/seafile/seahub-data:/var/seahub-data:ro # Dynamic seafile web content
+
+  seafile-db:
+    image: mariadb:10.3
+    container_name: seafile-db
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=db_dev  # Root passwort for initial setup
+      - MYSQL_LOG_CONSOLE=true
+    volumes:
+      - /var/seafile/mysql:/var/lib/mysql  # MySQL data persistent storage
+    #user: 'XXXX' # run as non-root user
+    restart: unless-stopped
+
+  memcached:
+    image: memcached:1.5.6
+    container_name: memcached
+    entrypoint: memcached -m 256
+    restart: unless-stopped
+    #user: 'XXXX' # run as non-root user
+          
+  seafile:
+    image: ibigq/seafile-docker:7.1.4
+    container_name: seafile
+    ports:
+      - 8000:8000
+      - 8082:8082
+    environment:
+      - SEAFILE_NAME=Seafile
+      - SEAFILE_URL=example.com
+      - DB_HOST=seafile-db # Database hostname
+      - DB_USER=seafile # Database username for initial setup
+      - DB_USER_PASSWORD=seafile-pw # Database user password for initial setup
+      - DB_ROOT_PASSWORD=db_dev # Database root password for initial setup
+      - SEAFILE_ADMIN_EMAIL=me@example.com # Seafile admin mail for initial setup
+      - SEAFILE_ADMIN_PASSWORD=asecret # Seafile admin password for initial setup
+      - SEAHUB_SHARE=/share # Mount point to share static web content
+      #- UID=XXXX # Custom User ID to run seafile (default 1000)
+      #- GUD=XXXX # Custom Group ID to run seafile (default 1000)
+    volumes:
+      - /var/seafile/seafile-data:/opt/seafile/seafile-data   # Seafile data persistent storage
+      - /var/seafile/conf:/opt/seafile/conf   # Seafile config persistent storage
+      - /var/seafile/logs:/opt/seafile/logs   # Seafile logs persistent storage
+      - /var/seafile/seahub-data:/opt/seafile/seahub-data   # Seahub data persistent storage
+      - /tmp/seahub:/share # Shared volume with web server for static content
+    restart: unless-stopped
+    depends_on:
+      - seafile-db
+      - memcached
+      - nginx
