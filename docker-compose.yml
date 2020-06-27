@@ -4,8 +4,6 @@ services:
   nginx:
     image: nginx:alpine
     container_name: nginx
-    env_file:
-      - ./nginx/nginx.env
     ports:
       - 0.0.0.0:80:80 # Standard HTTP
       - 0.0.0.0:443:443 # Standard HTTPS
