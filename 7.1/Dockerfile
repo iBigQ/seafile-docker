@@ -7,47 +7,26 @@ RUN mkdir -p /opt/seafile/ && cd /opt/seafile/ && \
 	tar -zxvf seafile-server_${SEAFILE_VERSION}_x86-64.tar.gz && \
 	rm -f seafile-server_${SEAFILE_VERSION}_x86-64.tar.gz
 
-RUN apt-get update && apt-get -y install python3-setuptools libmemcached-dev
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+    python3-setuptools \
+    libmemcached-dev && \
+  rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --timeout=3600 Pillow pylibmc captcha jinja2 sqlalchemy \
-	django-pylibmc django-simple-captcha python3-ldap
+RUN pip3 install --timeout=3600 \
+  Pillow \
+  pylibmc \
+  captcha \
+  jinja2 \
+  sqlalchemy \
+  django-pylibmc \
+  django-simple-captcha \
+  python3-ldap
 
 # Initiate to set symliks
-COPY ../utils/wait_file.sh /
-#RUN apt-get update && apt-get -y install mariadb-server
-#RUN nohup bash -c "mysqld_safe --no-auto-restart --no-watch" && \
-#	/wait_file.sh "/var/run/mysqld/mysqld.sock" 10 && \
-#	mysqladmin -u root password root-pw && \
-#	mysql \
-#		-u root -proot-pw\
-#		-h localhost \
-#		-e "UPDATE mysql.user SET Host='%' WHERE Host='localhost' AND User='root'; FLUSH PRIVILEGES;" && \
-#	echo "127.0.0.1 seafile-db" >> /etc/hosts && \
-#	/opt/seafile/seafile-server-${SEAFILE_VERSION}/setup-seafile-mysql.sh auto \
-#		--server-name "Seafile" \
-#		--server-ip "www.example.com" \
-#		--mysql-host "seafile-db" \
-#		--mysql-user "seafile" \
-#		--mysql-user-passwd "seafile-pw" \
-#		--mysql-user-host "%" \
-#		--mysql-root-passwd "root-pw" && \
-#	nohup bash -c "/opt/seafile/seafile-server-${SEAFILE_VERSION}/seafile.sh start" && \
-#	/wait_file.sh "/opt/seafile/pids/ccnet.pid" 10 && \
-#	/wait_file.sh "/opt/seafile/pids/seaf-server.pid" 10 && \
-#	echo '{"email": "me@example.com", "password": "asecret"}' > /opt/seafile/conf/admin.txt && \
-#	nohup bash -c "/opt/seafile/seafile-server-${SEAFILE_VERSION}/seahub.sh start" && \
-#	/wait_file.sh "/opt/seafile/pids/seahub.pid" 10 && \
-#	/opt/seafile/seafile-server-${SEAFILE_VERSION}/seahub.sh stop && \
-#	/opt/seafile/seafile-server-${SEAFILE_VERSION}/seafile.sh stop && \
-#	rm /opt/seafile/seafile-server-latest && \
-#	rm -r /opt/seafile/seafile-data && \
-#	rm -r /opt/seafile/seahub-data && \
-#	rm -r /opt/seafile/conf && \
-#	rm -r /opt/seafile/logs && \
-#	rm -r /opt/seafile/ccnet && \
-#	echo "Ran seafile and seahub"
+COPY ./utils/wait_file.sh /
 
-# Allow seafile-data volume to be mapped already
+# Allow some volumes to already be mapped when initializing
 RUN sed -e '/seafile_config.validate_seafile_dir(seafile_dir)/ \
 		s/^#*/#/' -i /opt/seafile/seafile-server-${SEAFILE_VERSION}/setup-seafile-mysql.py && \
 	sed -e '/if os.path.exists(ccnet_config.ccnet_dir)/ \
@@ -71,7 +50,7 @@ RUN addgroup --gid 1000 seafile && \
 COPY --from=builder /opt/seafile /opt/seafile
 RUN chown -R seafile:seafile /opt/seafile
 
-COPY ../utils/wait_file.sh /
+COPY ./utils/wait_file.sh /
 COPY ./docker-entrypoint.sh /docker-entrypoint.sh
 COPY ./run.sh /run.sh
 
